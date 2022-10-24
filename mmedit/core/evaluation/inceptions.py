@@ -173,12 +173,12 @@ class KID:
     """KID metric.
 
     Args:
-        num_bootstraps (int): Number of repetitions. Default: 100.
+        num_repeats (int): Number of repetitions. Default: 100.
         sample_size (int): Size to sample. Default: 1000.
     """
 
-    def __init__(self, num_bootstraps=100, sample_size=1000):
-        self.num_bootstraps = num_bootstraps
+    def __init__(self, num_repeats=100, sample_size=1000):
+        self.num_repeats = num_repeats
         self.sample_size = sample_size
 
     def __call__(self, X, Y):
@@ -192,8 +192,8 @@ class KID:
             (Tuple[float, float]): Tuple of mean and std of kid value.
         """
         num_samples = X.shape[0]
-        kids = np.zeros(self.num_bootstraps)
-        for i in range(self.num_bootstraps):
+        kids = np.zeros(self.num_repeats)
+        for i in range(self.num_repeats):
             kids[i] = mmd2(
                 X[np.random.choice(
                     num_samples, self.sample_size, replace=False)],
