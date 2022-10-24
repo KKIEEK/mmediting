@@ -96,57 +96,25 @@ class InceptionV3:
         load_checkpoint(model, pretrained, logger=logger)
 
 
-def frechet_distance(x, y):
-    """Numpy implementation of the Frechet Distance."""
+def compute_fid(X, Y, eps=1e-6):
+    """Compute the FID metric."""
 
-    mu1, sigma1 = np.mean(x, axis=0), np.cov(x, rowvar=False)
-    mu2, sigma2 = np.mean(y, axis=0), np.cov(y, rowvar=False)
-    mu1, sigma1 = np.atleast_1d(mu1), np.atleast_2d(sigma1) + 1e-7
-    mu2, sigma2 = np.atleast_1d(mu2), np.atleast_2d(sigma2) + 1e-7
+    muX, covX = np.mean(X, axis=0), np.cov(X, rowvar=False) + eps
+    muY, covY = np.mean(Y, axis=0), np.cov(Y, rowvar=False) + eps
 
-    diff = mu1 - mu2
-    covmean = linalg.sqrtm(sigma1.dot(sigma2))
-    if np.iscomplexobj(covmean):
-        covmean = covmean.real
+    diff = muX - muY
+    cov_sqrt = linalg.sqrtm(covX.dot(covY))
+    if np.iscomplexobj(cov_sqrt):
+        cov_sqrt = cov_sqrt.real
 
-    frechet_distance = diff.dot(diff) + np.trace(sigma1) + np.trace(
-        sigma2) - 2 * np.trace(covmean)
+    frechet_distance = diff.dot(diff) + np.trace(covX) + np.trace(
+        covY) - 2 * np.trace(cov_sqrt)
     return frechet_distance
-
-
-def polynomial_kernel(X, Y=None, degree=3, gamma=None, coef=1):
-    if Y is None:
-        Y = X.copy()
-    if gamma is None:
-        gamma = 1.0 / X.shape[1]
-    K = (np.matmul(X, Y.T) * gamma + coef)**degree
-    return K
-
-
-def mmd2(x, y):
-    """Numpy implementation of the Maximum Mean Discrepancy."""
-
-    XX = polynomial_kernel(x, degree=3, coef0=1)
-    YY = polynomial_kernel(y, degree=3, coef0=1)
-    XY = polynomial_kernel(x, y, degree=3, coef0=1)
-
-    m = XX.shape[0]
-    mmd2 = 1 / (m * (m - 1)) * (np.sum(XX) - np.trace(XX)) + (
-        1 / (m *
-             (m - 1)) * (np.sum(YY) - np.trace(YY))) - (2 / m**2 * np.sum(XY))
-    return mmd2
 
 
 @METRICS.register_module()
 class FID:
-    """FID metric.
-
-    Args:
-        num_bootstraps (int): Number of repetitions. Default: 100.
-    """
-
-    def __init__(self, num_bootstraps=1):
-        self.num_bootstraps = num_bootstraps
+    """FID metric."""
 
     def __call__(self, X, Y):
         """Calculate FID.
@@ -158,14 +126,33 @@ class FID:
         Returns:
             (float): fid value.
         """
-        num_samples = X.shape[0]
-        fids = np.zeros(self.num_bootstraps)
-        for i in range(self.num_bootstraps):
-            fids[i] = frechet_distance(
-                X[np.random.choice(num_samples, num_samples, replace=True)],
-                Y[np.random.choice(num_samples, num_samples, replace=True)],
-            )
-        return fids.mean()
+        return compute_fid(X, Y)
+
+
+def polynomial_kernel(X, Y=None, degree=3, gamma=None, coef=1):
+    Y = X if Y is None else Y
+    if gamma is None:
+        gamma = 1.0 / X.shape[1]
+    K = ((X @ Y.T) * gamma + coef)**degree
+    return K
+
+
+def mmd2(X, Y, biased=False):
+    """Numpy implementation of the Maximum Mean Discrepancy."""
+
+    XX = polynomial_kernel(X, X)
+    YY = polynomial_kernel(Y, Y)
+    XY = polynomial_kernel(X, Y)
+
+    m = X.shape[0]
+    if biased:
+        return (np.sum(XX) + np.sum(YY) - 2 * np.sum(XY)) / m**2
+
+    trX = np.trace(XX)
+    trY = np.trace(YY)
+    return (np.divide(np.sum(XX) - trX, (m * (m - 1))) +
+            np.divide(np.sum(YY) - trY,
+                      (m * (m - 1))) - np.divide(np.sum(XY) * 2.0, m**2))
 
 
 @METRICS.register_module()
