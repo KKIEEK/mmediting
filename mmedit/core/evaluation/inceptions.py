@@ -79,7 +79,7 @@ class FID:
 
 
 def polynomial_kernel(X, Y=None, degree=3, gamma=None, coef=1):
-    """Create polynomial kernel."""
+    """Create a polynomial kernel."""
     Y = X if Y is None else Y
     if gamma is None:
         gamma = 1.0 / X.shape[1]
