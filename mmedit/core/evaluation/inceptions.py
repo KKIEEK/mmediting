@@ -19,7 +19,7 @@ class InceptionV3:
         self.inception = _InceptionV3(**inception_kwargs).to(device)
         self.device = device
 
-    def __call__(self, img1, img2, **kwargs):
+    def __call__(self, img1, img2, crop_border=0):
         """Extract features of real and fake images.
 
         Args:
@@ -65,7 +65,7 @@ def frechet_distance(X, Y, eps=1e-6):
 class FID:
     """FID metric."""
 
-    def __call__(self, X, Y, crop_border=0):
+    def __call__(self, X, Y):
         """Calculate FID.
 
         Args:
@@ -117,7 +117,7 @@ class KID:
         self.sample_size = sample_size
         self.biased = biased
 
-    def __call__(self, X, Y, crop_border=0):
+    def __call__(self, X, Y):
         """Calculate KID.
 
         Args:
