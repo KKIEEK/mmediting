@@ -7,37 +7,44 @@ from ..registry import METRICS
 from .inception_utils import InceptionV3 as _InceptionV3
 
 
-def img2tensor(img, out_type=torch.float32):
-    img = img.transpose((2, 0, 1))
-    img = np.expand_dims(img, axis=0)
-    img = img / 255.
-    tensor = torch.from_numpy(img)
-    return tensor.to(out_type)
-
-
 class InceptionV3:
-    """Feature extractor features using InceptionV3 model."""
+    """Feature extractor features using InceptionV3 model.
 
-    def __init__(self, **inception_kwargs):
-        self.inception = _InceptionV3(**inception_kwargs)
+    Args:
+        device (torch.device): device to extract feature.
+        inception_kwargs (**kwargs): kwargs for InceptionV3.
+    """
+
+    def __init__(self, device='cpu', **inception_kwargs):
+        self.inception = _InceptionV3(**inception_kwargs).to(device)
+        self.device = device
 
     def __call__(self, img1, img2, **kwargs):
         """Extract features of real and fake images.
 
         Args:
             img1, img2 (np.ndarray): Images with range [0, 255]
-                with order 'HWC'.
+                and shape (H, W, C).
 
         Returns:
             (tuple): Pair of features extracted from InceptionV3 model.
         """
         return (
-            self.inception(img2tensor(img1)).numpy(),
-            self.inception(img2tensor(img2)).numpy(),
+            self.forward_inception(self.img2tensor(img1)).numpy(),
+            self.forward_inception(self.img2tensor(img2)).numpy(),
         )
 
+    def img2tensor(self, img):
+        img = img.transpose((2, 0, 1))
+        img = np.expand_dims(img, axis=0)
+        return torch.from_numpy(img / 255.).to(
+            device=self.device, dtype=torch.float32)
 
-def compute_fid(X, Y, eps=1e-6):
+    def forward_inception(self, x):
+        return torch.flatten(self.inception(x)[0], 1)
+
+
+def frechet_distance(X, Y, eps=1e-6):
     """Compute the FID metric."""
 
     muX, covX = np.mean(X, axis=0), np.cov(X, rowvar=False) + eps
@@ -67,12 +74,11 @@ class FID:
         Returns:
             (float): fid value.
         """
-        return compute_fid(X, Y)
+        return frechet_distance(X, Y)
 
 
 def polynomial_kernel(X, Y=None, degree=3, gamma=None, coef=1):
     """Create polynomial kernel."""
-
     Y = X if Y is None else Y
     if gamma is None:
         gamma = 1.0 / X.shape[1]
@@ -82,7 +88,6 @@ def polynomial_kernel(X, Y=None, degree=3, gamma=None, coef=1):
 
 def mmd2(X, Y, biased=False):
     """Compute the Maximum Mean Discrepancy."""
-
     XX = polynomial_kernel(X, X)
     YY = polynomial_kernel(Y, Y)
     XY = polynomial_kernel(X, Y)
@@ -106,9 +111,10 @@ class KID:
         sample_size (int): Size to sample. Default: 1000.
     """
 
-    def __init__(self, num_repeats=100, sample_size=1000):
+    def __init__(self, num_repeats=100, sample_size=1000, biased=False):
         self.num_repeats = num_repeats
         self.sample_size = sample_size
+        self.biased = biased
 
     def __call__(self, X, Y):
         """Calculate KID.
@@ -127,6 +133,6 @@ class KID:
                 num_samples, self.sample_size, replace=False)]
             Y_ = Y[np.random.choice(
                 num_samples, self.sample_size, replace=False)]
-            kid.append(mmd2(X_, Y_))
+            kid.append(mmd2(X_, Y_, biased=self.biased))
         kid = np.array(kid)
         return dict(KID_MEAN=kid.mean(), KID_STD=kid.std())
