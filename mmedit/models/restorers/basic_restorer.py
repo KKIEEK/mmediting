@@ -3,6 +3,7 @@ import numbers
 import os.path as osp
 
 import mmcv
+import torch
 from mmcv.runner import auto_fp16
 
 from mmedit.core import InceptionV3, psnr, ssim, tensor2img
@@ -110,7 +111,7 @@ class BasicRestorer(BaseModel):
         if 'InceptionV3' not in self.allowed_metrics and (
                 'InceptionV3' in self.test_cfg.metrics):
             self.allowed_metrics['InceptionV3'] = InceptionV3(
-                device=self.device)
+                device='cuda' if torch.cuda.is_available() else 'cpu')
 
         crop_border = self.test_cfg.crop_border
 
