@@ -65,7 +65,7 @@ def frechet_distance(X, Y, eps=1e-6):
 class FID:
     """FID metric."""
 
-    def __call__(self, X, Y):
+    def __call__(self, X, Y, crop_border=0):
         """Calculate FID.
 
         Args:
@@ -117,7 +117,7 @@ class KID:
         self.sample_size = sample_size
         self.biased = biased
 
-    def __call__(self, X, Y):
+    def __call__(self, X, Y, crop_border=0):
         """Calculate KID.
 
         Args:
