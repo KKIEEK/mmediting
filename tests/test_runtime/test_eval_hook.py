@@ -81,8 +81,8 @@ def test_eval_hook():
         test_dataset.evaluate.assert_called_with([torch.tensor([1])],
                                                  logger=runner.logger)
 
-    # for feature based metrics
     with pytest.raises(AssertionError):
+        # EvalHook with metrics must contain `InceptionV3` result
         test_dataset = ExampleDataset()
         test_dataset.evaluate = MagicMock(return_value=dict(test='success'))
         model = ExampleModel()
@@ -108,6 +108,7 @@ def test_eval_hook():
             test_dataset.evaluate.assert_called_with([torch.tensor([1])],
                                                      logger=runner.logger)
 
+    # for feature based metrics
     test_dataset = ExampleDataset()
     test_dataset.evaluate = MagicMock(
         return_value=dict(
