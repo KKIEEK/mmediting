@@ -46,7 +46,7 @@ class InceptionV3:
 
 
 def frechet_distance(X, Y, eps=1e-6):
-    """Compute the FID metric."""
+    """Compute the frechet distance."""
 
     muX, covX = np.mean(X, axis=0), np.cov(X, rowvar=False) + eps
     muY, covY = np.mean(Y, axis=0), np.cov(Y, rowvar=False) + eps
@@ -105,7 +105,7 @@ def mmd2(X, Y, biased=False):
 
 @METRICS.register_module()
 class KID:
-    """KID metric.
+    """Implementation of `KID <https://arxiv.org/abs/1801.01401>`.
 
     Args:
         num_repeats (int): Number of repetitions. Default: 100.
