@@ -1,13 +1,10 @@
 # Copyright (c) OpenMMLab. All rights reserved.
 import numpy as np
 import torch
-import torch.nn.functional as F
-import torchvision.models.inception as inception
-from mmcv.runner import load_checkpoint
 from scipy import linalg
 
-from mmedit.utils import get_root_logger
 from ..registry import METRICS
+from .inception_utils import InceptionV3 as _InceptionV3
 
 
 def img2tensor(img, out_type=torch.float32):
@@ -19,81 +16,25 @@ def img2tensor(img, out_type=torch.float32):
 
 
 class InceptionV3:
-    """Inception network used in calculating perceptual loss.
+    """Feature extractor features using InceptionV3 model."""
 
-    In this implementation, we allow users to choose whether use normalization
-    in the input feature and the type of inception network. Note that the
-    pretrained path must fit the inception type.
-    Args:
-        inception_type (str): Set the type of inception network.
-            Default: 'inception_v3'.
-        use_input_norm (bool): If True, normalize the input image.
-            Importantly, the input feature must in the range [0, 1].
-            Default: True.
-        pretrained (str): Path for pretrained weights. Default:
-            'torchvision://inception_v3_google'
-    """
+    def __init__(self, **inception_kwargs):
+        self.inception = _InceptionV3(**inception_kwargs)
 
-    def __init__(self,
-                 inception_type='inception_v3',
-                 use_input_norm=True,
-                 pretrained='torchvision://inception_v3_google'):
-        super().__init__()
-        if pretrained.startswith('torchvision://'):
-            assert inception_type in pretrained
-        self.use_input_norm = use_input_norm
-
-        # get inception model and load pretrained inception weight
-        # remove _inception from attributes to avoid `find_unused_parameters`
-        _inception = getattr(inception, inception_type)()
-        self.init_weights(_inception, pretrained)
-        del _inception.AuxLogits, _inception.dropout, _inception.fc
-        self.inception = _inception.eval()
-
-        if self.use_input_norm:
-            # the mean is for image with range [0, 1]
-            self.mean = torch.Tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1)
-            # the std is for image with range [-1, 1]
-            self.std = torch.Tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1)
-
-        for v in self.inception.parameters():
-            v.requires_grad = False
-
-    def __call__(self, img1, img2, crop_border=0):
-        return self.forward(img1), self.forward(img2)
-
-    def forward(self, x):
-        """Forward function.
+    def __call__(self, img1, img2, **kwargs):
+        """Extract features of real and fake images.
 
         Args:
-            x (np.ndarray): Input np.ndarray with shape (h, w, c).
+            img1, img2 (np.ndarray): Images with range [0, 255]
+                with order 'HWC'.
+
         Returns:
-            np.ndarray: Forward results, which is feature np.ndarray
-                with shape (1, 2048).
+            (tuple): Pair of features extracted from InceptionV3 model.
         """
-
-        x = img2tensor(x)
-        x = F.interpolate(
-            x, size=(299, 299), mode='bilinear', align_corners=False)
-
-        if self.use_input_norm:
-            x = (x - self.mean) / self.std
-        output = {}
-
-        for _, module in self.inception.named_children():
-            x = module(x)
-        output = torch.flatten(x, 1)
-        return output.numpy()
-
-    def init_weights(self, model, pretrained):
-        """Init weights.
-
-        Args:
-            model (nn.Module): Models to be inited.
-            pretrained (str): Path for pretrained weights.
-        """
-        logger = get_root_logger()
-        load_checkpoint(model, pretrained, logger=logger)
+        return (
+            self.inception(img2tensor(img1)).numpy(),
+            self.inception(img2tensor(img2)).numpy(),
+        )
 
 
 def compute_fid(X, Y, eps=1e-6):
@@ -130,6 +71,8 @@ class FID:
 
 
 def polynomial_kernel(X, Y=None, degree=3, gamma=None, coef=1):
+    """Create polynomial kernel."""
+
     Y = X if Y is None else Y
     if gamma is None:
         gamma = 1.0 / X.shape[1]
@@ -138,7 +81,7 @@ def polynomial_kernel(X, Y=None, degree=3, gamma=None, coef=1):
 
 
 def mmd2(X, Y, biased=False):
-    """Numpy implementation of the Maximum Mean Discrepancy."""
+    """Compute the Maximum Mean Discrepancy."""
 
     XX = polynomial_kernel(X, X)
     YY = polynomial_kernel(Y, Y)
@@ -150,9 +93,8 @@ def mmd2(X, Y, biased=False):
 
     trX = np.trace(XX)
     trY = np.trace(YY)
-    return (np.divide(np.sum(XX) - trX, (m * (m - 1))) +
-            np.divide(np.sum(YY) - trY,
-                      (m * (m - 1))) - np.divide(np.sum(XY) * 2.0, m**2))
+    return ((np.sum(XX) - trX) / (m * (m - 1)) + (np.sum(YY) - trY) /
+            (m * (m - 1)) - 2 * np.sum(XY) / m**2)
 
 
 @METRICS.register_module()
@@ -176,15 +118,15 @@ class KID:
             Y (np.ndarray): Input feature Y with shape (n_samples, dims).
 
         Returns:
-            (Tuple[float, float]): Tuple of mean and std of kid value.
+            (dict): dict containing mean and std of KID values.
         """
         num_samples = X.shape[0]
-        kids = np.zeros(self.num_repeats)
+        kid = list()
         for i in range(self.num_repeats):
-            kids[i] = mmd2(
-                X[np.random.choice(
-                    num_samples, self.sample_size, replace=False)],
-                Y[np.random.choice(
-                    num_samples, self.sample_size, replace=False)],
-            )
-        return dict(KID_MEAN=kids.mean(), KID_STD=kids.std())
+            X_ = X[np.random.choice(
+                num_samples, self.sample_size, replace=False)]
+            Y_ = Y[np.random.choice(
+                num_samples, self.sample_size, replace=False)]
+            kid.append(mmd2(X_, Y_))
+        kid = np.array(kid)
+        return dict(KID_MEAN=kid.mean(), KID_STD=kid.std())
