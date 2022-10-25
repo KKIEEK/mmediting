@@ -82,7 +82,8 @@ def test_eval_hook():
                                                  logger=runner.logger)
 
     with pytest.raises(AssertionError):
-        # EvalHook with metrics must contain `InceptionV3` result
+        # When using `EvalHook` with metrics, the return value of
+        # `dataset.evaluate` must contain the key 'InceptionV3'.
         test_dataset = ExampleDataset()
         test_dataset.evaluate = MagicMock(return_value=dict(test='success'))
         model = ExampleModel()
