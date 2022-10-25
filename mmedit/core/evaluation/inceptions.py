@@ -41,7 +41,8 @@ class InceptionV3:
             device=self.device, dtype=torch.float32)
 
     def forward_inception(self, x):
-        return torch.flatten(self.inception(x)[0], 1)
+        with torch.no_grad():
+            return self.inception(x)[0].view(x.shape[0], -1).cpu()
 
 
 def frechet_distance(X, Y, eps=1e-6):

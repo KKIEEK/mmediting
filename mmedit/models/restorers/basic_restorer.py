@@ -109,7 +109,8 @@ class BasicRestorer(BaseModel):
         # lazy initialization for evaluation
         if 'InceptionV3' not in self.allowed_metrics and (
                 'InceptionV3' in self.test_cfg.metrics):
-            self.allowed_metrics['InceptionV3'] = InceptionV3()
+            self.allowed_metrics['InceptionV3'] = InceptionV3(
+                device=self.device)
 
         crop_border = self.test_cfg.crop_border
 
