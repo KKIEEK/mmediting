@@ -3,11 +3,15 @@
 
 This code is modified from:
 https://github.com/rosinality/stylegan2-pytorch/blob/master/inception.py
+https://github.com/open-mmlab/mmediting/blob/1.x/mmedit/evaluation/functional/inception_utils.py
 """
+
+from contextlib import contextmanager
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from mmcv.runner.checkpoint import load_from_http
 from torch.utils.model_zoo import load_url
 from torchvision import models
 
@@ -16,7 +20,7 @@ from torchvision import models
 FID_WEIGHTS_URL = 'https://github.com/mseitzer/pytorch-fid/releases/download/fid_weights/pt_inception-2015-12-05-6726825d.pth'  # noqa: E501
 
 
-class InceptionV3(nn.Module):
+class PyTorchInceptionV3(nn.Module):
     """Pretrained InceptionV3 network returning feature maps."""
 
     # Index of default block of inception to return,
@@ -330,3 +334,31 @@ class FIDInceptionE_2(models.inception.InceptionE):
 
         outputs = [branch1x1, branch3x3, branch3x3dbl, branch_pool]
         return torch.cat(outputs, 1)
+
+
+@contextmanager
+def disable_gpu_fuser_on_pt19():
+    """On PyTorch 1.9 a CUDA fuser bug prevents the Inception JIT model to run.
+
+    Refers to:
+      https://github.com/GaParmar/clean-fid/blob/5e1e84cdea9654b9ac7189306dfa4057ea2213d8/cleanfid/inception_torchscript.py#L9  # noqa
+      https://github.com/GaParmar/clean-fid/issues/5
+      https://github.com/pytorch/pytorch/issues/64062
+    """
+    if torch.__version__.startswith('1.9.'):
+        old_val = torch._C._jit_can_fuse_on_gpu()
+        torch._C._jit_override_can_fuse_on_gpu(False)
+    yield
+    if torch.__version__.startswith('1.9.'):
+        torch._C._jit_override_can_fuse_on_gpu(old_val)
+
+
+class StyleGANInceptionV3(nn.Module):
+
+    def __init__(self, inception_url):
+        super().__init__()
+        self.inception = load_from_http(inception_url)
+
+    def forward(self, inp):
+        with disable_gpu_fuser_on_pt19():
+            return self.inception(inp, return_features=True)
