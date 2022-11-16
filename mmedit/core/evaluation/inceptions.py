@@ -53,8 +53,8 @@ class InceptionV3:
 def frechet_distance(X, Y, eps=1e-6):
     """Compute the frechet distance."""
 
-    muX, covX = np.mean(X, axis=0, dtype=np.float64), np.cov(X, rowvar=False)
-    muY, covY = np.mean(Y, axis=0, dtype=np.float64), np.cov(Y, rowvar=False)
+    muX, covX = np.mean(X, axis=0), np.cov(X, rowvar=False) + eps
+    muY, covY = np.mean(Y, axis=0), np.cov(Y, rowvar=False) + eps
 
     cov_sqrt = linalg.sqrtm(covX.dot(covY))
     frechet_distance = np.square(muX - muY).sum() + np.trace(covX) + np.trace(
