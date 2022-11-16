@@ -3,8 +3,6 @@ import numpy as np
 import pytest
 import torch
 
-from mmedit.core.evaluation.inception_utils import (PyTorchInceptionV3,
-                                                    StyleGANInceptionV3)
 from mmedit.core.evaluation.inceptions import FID, KID, InceptionV3
 
 
@@ -12,9 +10,12 @@ def test_inception():
     img1 = np.random.randint(0, 256, (224, 224, 3))
     img2 = np.random.randint(0, 256, (224, 224, 3))
 
+    # style must be either StyleGAN or pytorch
+    with pytest.raises(AssertionError):
+        inception = InceptionV3(style='some')
+
     # for StyleGAN style inception
     inception = InceptionV3(style='StyleGAN')
-    assert isinstance(inception.inception, StyleGANInceptionV3)
 
     t = inception.img2tensor(img1)
     assert isinstance(t, torch.Tensor)
@@ -26,8 +27,7 @@ def test_inception():
     assert t.shape == (1, 2048)
 
     # for PyTorch style inception
-    inception = InceptionV3(style=None)
-    assert isinstance(inception.inception, PyTorchInceptionV3)
+    inception = InceptionV3(style='pytorch')
 
     t = inception.img2tensor(img1)
     assert isinstance(t, torch.Tensor)
