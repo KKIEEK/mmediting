@@ -4,7 +4,7 @@ import torch
 from scipy import linalg
 
 from ..registry import METRICS
-from .inception_utils import PyTorchInceptionV3, StyleGANInceptionV3
+from .inception_utils import load_inception
 
 
 class InceptionV3:
@@ -16,14 +16,7 @@ class InceptionV3:
     """
 
     def __init__(self, style='StyleGAN', device='cpu', **inception_kwargs):
-        if style == 'StyleGAN':
-            inception = StyleGANInceptionV3(
-                'https://nvlabs-fi-cdn.nvidia.com/stylegan2-ada-pytorch/pretrained/metrics/inception-2015-12-05.pt'  # noqa: E501
-            )
-        else:
-            inception = PyTorchInceptionV3(**inception_kwargs)
-        self.inception = inception.to(device).eval()
-
+        self.inception = load_inception(style, inception_kwargs)
         self.style = style
         self.device = device
 

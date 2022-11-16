@@ -11,6 +11,7 @@ from contextlib import contextmanager
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from mmcv import print_log
 from mmcv.runner.checkpoint import load_from_http
 from torch.utils.model_zoo import load_url
 from torchvision import models
@@ -362,3 +363,37 @@ class StyleGANInceptionV3(nn.Module):
     def forward(self, inp):
         with disable_gpu_fuser_on_pt19():
             return self.inception(inp, return_features=True)
+
+
+def load_inception(style=None, **inception_kwargs):
+    """Load Inception Model from given `style` and `inception_kwargs`.
+
+    This function would try to load Inception under the guidance of 'type'
+    given in `inception_args`, if not given, we would try best to load Tero's
+    ones. In detailly, we would first try to load the model from disk with
+    the given 'inception_path', and then try to download the checkpoint from
+    'inception_url'. If both method are failed, pytorch version of Inception
+    would be loaded.
+    Args:
+        inception_args (dict): Keyword args for inception net.
+        metric (string): Metric to use the Inception. This argument would
+            influence the pytorch's Inception loading.
+    Returns:
+        model (torch.nn.Module): Loaded Inception model.
+        style (string): The version of the loaded Inception.
+    """
+
+    if torch.__version__ < '1.6.0':
+        print_log(
+            'Current Pytorch Version not support script module, load '
+            'Inception Model from torch model zoo. If you want to use '
+            'Tero\' script model, please update your Pytorch higher '
+            f'than \'1.6\' (now is {torch.__version__})', 'current')
+        return PyTorchInceptionV3(**inception_kwargs)
+
+    if style != 'StyleGAN':
+        return PyTorchInceptionV3(**inception_kwargs)
+
+    return StyleGANInceptionV3(
+        'https://nvlabs-fi-cdn.nvidia.com/stylegan2-ada-pytorch/pretrained/metrics/inception-2015-12-05.pt'  # noqa: E501
+    )
