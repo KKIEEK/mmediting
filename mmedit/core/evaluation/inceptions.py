@@ -11,6 +11,8 @@ class InceptionV3:
     """Feature extractor features using InceptionV3 model.
 
     Args:
+        style (str): The model style to run Inception model. it must be either
+            'StyleGAN' or 'pytorch'.
         device (torch.device): device to extract feature.
         inception_kwargs (**kwargs): kwargs for InceptionV3.
     """
