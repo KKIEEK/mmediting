@@ -18,7 +18,8 @@ class InceptionV3:
     """
 
     def __init__(self, style='StyleGAN', device='cpu', **inception_kwargs):
-        self.inception = load_inception(style=style, **inception_kwargs)
+        self.inception = load_inception(
+            style=style, **inception_kwargs).eval().to(device)
         self.style = style
         self.device = device
 
