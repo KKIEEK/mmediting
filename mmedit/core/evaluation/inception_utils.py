@@ -373,7 +373,7 @@ class StyleGANInceptionV3(nn.Module):
             return self.inception(inp, return_features=True)
 
 
-def load_inception(style: str = 'StyleGAN', **inception_kwargs):
+def load_inception(style='StyleGAN', **inception_kwargs):
     """Load Inception Model from given `style` and `inception_kwargs`.
 
     This function would try to load Inception under the guidance of `style`

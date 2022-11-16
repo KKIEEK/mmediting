@@ -18,7 +18,7 @@ class InceptionV3:
     """
 
     def __init__(self, style='StyleGAN', device='cpu', **inception_kwargs):
-        self.inception = load_inception(style, inception_kwargs)
+        self.inception = load_inception(style=style, **inception_kwargs)
         self.style = style
         self.device = device
 
@@ -52,11 +52,11 @@ class InceptionV3:
         return self.inception(x)[-1].view(x.shape[0], -1).cpu()
 
 
-def frechet_distance(X, Y, eps=1e-6):
+def frechet_distance(X, Y):
     """Compute the frechet distance."""
 
-    muX, covX = np.mean(X, axis=0), np.cov(X, rowvar=False) + eps
-    muY, covY = np.mean(Y, axis=0), np.cov(Y, rowvar=False) + eps
+    muX, covX = np.mean(X, axis=0), np.cov(X, rowvar=False)
+    muY, covY = np.mean(Y, axis=0), np.cov(Y, rowvar=False)
 
     cov_sqrt = linalg.sqrtm(covX.dot(covY))
     frechet_distance = np.square(muX - muY).sum() + np.trace(covX) + np.trace(

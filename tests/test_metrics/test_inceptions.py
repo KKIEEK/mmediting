@@ -12,6 +12,10 @@ def test_inception():
     img1 = np.random.randint(0, 256, (224, 224, 3))
     img2 = np.random.randint(0, 256, (224, 224, 3))
 
+    # style must be either StyleGAN or pytorch
+    with pytest.raises(AssertionError):
+        inception = InceptionV3(style='some')
+
     # for StyleGAN style inception
     inception = InceptionV3(style='StyleGAN')
     assert isinstance(inception.inception, StyleGANInceptionV3)
@@ -26,7 +30,7 @@ def test_inception():
     assert t.shape == (1, 2048)
 
     # for PyTorch style inception
-    inception = InceptionV3(style=None)
+    inception = InceptionV3(style='pytorch')
     assert isinstance(inception.inception, PyTorchInceptionV3)
 
     t = inception.img2tensor(img1)
