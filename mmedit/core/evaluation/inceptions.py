@@ -116,8 +116,8 @@ class KID:
         sample_size (int): Size to sample. Default: 1000.
         use_unbiased_estimator (bool): Whether to use KID as an unbiased
             estimator. Using an unbiased estimator is desirable in the case of
-            finite sample size, especially when the number of samples are small.
-            We recommend to use an unbiased estimator in most cases.
+            finite sample size, especially when the number of samples are
+            small. Using an unbiased estimator is recommended in most cases.
             Default: True
     """
 
