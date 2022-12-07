@@ -7,6 +7,7 @@ import pytest
 import torch
 from mmcv.runner import obj_from_dict
 
+from mmedit.core.evaluation import InceptionV3
 from mmedit.models import build_model
 from mmedit.models.backbones import MSRResNet
 from mmedit.models.losses import L1Loss
@@ -121,7 +122,7 @@ def test_basic_restorer():
         assert outputs['results']['output'].size() == (1, 3, 80, 80)
 
     # test with metric and save image
-    test_cfg = dict(metrics=('PSNR', 'SSIM', 'InceptionV3'), crop_border=0)
+    test_cfg = dict(metrics=('PSNR', 'SSIM', 'FID', 'KID'), crop_border=0)
     test_cfg = mmcv.Config(test_cfg)
 
     data_batch = {
@@ -150,7 +151,14 @@ def test_basic_restorer():
         assert isinstance(outputs['eval_result']['PSNR'], float)
         assert isinstance(outputs['eval_result']['SSIM'], float)
 
-        incept_result = outputs['eval_result']['InceptionV3']
+        # for feature-based metrics
+        assert isinstance(outputs['eval_result']['FID'], dict)
+        assert isinstance(outputs['eval_result']['KID'], dict)
+        assert '_inception_feat' in restorer.allowed_metrics
+        assert isinstance(restorer.allowed_metrics['_inception_feat'],
+                          InceptionV3)
+
+        incept_result = outputs['eval_result']['_inception_feat']
         assert isinstance(incept_result, tuple) and len(incept_result) == 2
         for feat in incept_result:
             assert isinstance(feat, np.ndarray)
@@ -167,7 +175,14 @@ def test_basic_restorer():
         assert isinstance(outputs['eval_result']['PSNR'], float)
         assert isinstance(outputs['eval_result']['SSIM'], float)
 
-        incept_result = outputs['eval_result']['InceptionV3']
+        # for feature-based metrics
+        assert isinstance(outputs['eval_result']['FID'], dict)
+        assert isinstance(outputs['eval_result']['KID'], dict)
+        assert '_inception_feat' in restorer.allowed_metrics
+        assert isinstance(restorer.allowed_metrics['_inception_feat'],
+                          InceptionV3)
+
+        incept_result = outputs['eval_result']['_inception_feat']
         assert isinstance(incept_result, tuple) and len(incept_result) == 2
         for feat in incept_result:
             assert isinstance(feat, np.ndarray)

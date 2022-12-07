@@ -22,8 +22,9 @@ class EvalIterHook(Hook):
             save_image (bool): Whether to save image.
             save_path (str): The path to save image.
     """
+    feature_based_metric = ['FID', 'KID']
 
-    def __init__(self, dataloader, interval=1, metrics=None, **eval_kwargs):
+    def __init__(self, dataloader, interval=1, **eval_kwargs):
         if not isinstance(dataloader, DataLoader):
             raise TypeError('dataloader must be a pytorch DataLoader, '
                             f'but got { type(dataloader)}')
@@ -32,11 +33,6 @@ class EvalIterHook(Hook):
         self.eval_kwargs = eval_kwargs
         self.save_image = self.eval_kwargs.pop('save_image', False)
         self.save_path = self.eval_kwargs.pop('save_path', None)
-
-        metrics = metrics or []
-        if isinstance(metrics, dict):
-            metrics = [metrics]
-        self.metrics = build_metric(metrics)
 
     def after_train_iter(self, runner):
         """The behavior after each train iteration.
@@ -66,12 +62,16 @@ class EvalIterHook(Hook):
         eval_res = self.dataloader.dataset.evaluate(
             results, logger=runner.logger, **self.eval_kwargs)
 
-        # evaluate feature based metrics
-        features = eval_res.pop('InceptionV3', None)
-        for metric in self.metrics:
-            assert features is not None
-            X, Y = features
-            eval_res[metric.__class__.__name__] = metric(X, Y)
+        # evaluate feature-based metrics
+        features = eval_res.pop('_inception_feat', None)
+        for metric in self.feature_based_metric:
+            if metric in eval_res:
+                # since there is no parameters or network in FID and KID,
+                # we can directly build a new metric
+                metric_implement = build_metric(eval_res[metric])
+                assert features is not None
+                X, Y = features
+                eval_res[metric] = metric_implement(X, Y)
 
         for name, val in eval_res.items():
             if isinstance(val, dict):
@@ -108,10 +108,9 @@ class DistEvalIterHook(EvalIterHook):
     def __init__(self,
                  dataloader,
                  interval=1,
-                 metrics=None,
                  gpu_collect=False,
                  **eval_kwargs):
-        super().__init__(dataloader, interval, metrics, **eval_kwargs)
+        super().__init__(dataloader, interval, **eval_kwargs)
         self.gpu_collect = gpu_collect
 
     def after_train_iter(self, runner):
