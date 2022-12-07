@@ -7,7 +7,7 @@ from pathlib import Path
 import numpy as np
 from mmcv import scandir
 
-from mmedit.core import build_metric
+from mmedit.core.registry import build_metric
 from .base_dataset import BaseDataset
 
 IMG_EXTENSIONS = ('.jpg', '.JPG', '.jpeg', '.JPEG', '.png', '.PNG', '.ppm',
@@ -98,7 +98,10 @@ class BaseSRDataset(BaseDataset):
 
             for metric in FEATURE_BASED_METRICS:
                 if metric in eval_result:
-                    metric_func = build_metric(eval_result[metric])
+                    metric_func = build_metric(eval_result[metric].pop())
                     eval_result[metric] = metric_func(feat1, feat2)
+
+            # delete a redundant key for clean logging
+            del eval_result['_inception_feat']
 
         return eval_result

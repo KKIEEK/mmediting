@@ -1,17 +1,18 @@
 # Copyright (c) OpenMMLab. All rights reserved.
 import numbers
 import os.path as osp
+import warnings
 from copy import deepcopy
 
 import mmcv
 import torch
 from mmcv.runner import auto_fp16
-from mmcv.utils import print_log
 
 from mmedit.core import InceptionV3, psnr, ssim, tensor2img
 from ..base import BaseModel
 from ..builder import build_backbone, build_loss
 from ..registry import MODELS
+
 
 
 @MODELS.register_module()
@@ -32,6 +33,7 @@ class BasicRestorer(BaseModel):
         pretrained (str): Path for pretrained model. Default: None.
     """
     allowed_metrics = {'PSNR': psnr, 'SSIM': ssim}
+    feature_based_metrics = ['FID', 'KID']
 
     def __init__(self,
                  generator,
@@ -117,20 +119,20 @@ class BasicRestorer(BaseModel):
         eval_result = dict()
         inception_needed_metrics = []
         for metric in self.test_cfg.metrics:
-            if metric in ['FID', 'KID']:
+            if metric in self.feature_based_metrics:
                 inception_needed_metrics.append(metric)
                 # build with default args
                 eval_result[metric] = dict(type=metric)
             elif (isinstance(metric, dict)
-                  and metric['type'] in ['FID', 'KID']):
+                  and metric['type'] in self.feature_based_metrics):
                 inception_needed_metrics.append(metric['type'])
                 # build with user defined args
                 eval_result[metric['type']] = deepcopy(metric)
 
         if inception_needed_metrics:
-            print_log("'_incetion_feat' is newly added to "
-                      '`self.test_cfg.metrics` to compute '
-                      f'{inception_needed_metrics}.')
+            warnings.warn("'_incetion_feat' is newly added to "
+                          '`self.test_cfg.metrics` to compute '
+                          f'{inception_needed_metrics}.')
             if '_inception_feat' not in self.allowed_metrics:
                 inception_style = self.test_cfg.get('inception_style',
                                                     'StyleGAN')
@@ -141,7 +143,7 @@ class BasicRestorer(BaseModel):
                     self.test_cfg.metrics) + ('_inception_feat', )
 
         for metric in self.test_cfg.metrics:
-            if isinstance(metric, dict) or metric in ['FID', 'KID']:
+            if isinstance(metric, dict) or metric in self.feature_based_metrics:
                 # skip FID and KID
                 continue
             else:
