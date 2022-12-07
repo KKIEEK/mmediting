@@ -14,7 +14,6 @@ from ..builder import build_backbone, build_loss
 from ..registry import MODELS
 
 
-
 @MODELS.register_module()
 class BasicRestorer(BaseModel):
     """Basic model for image restoration.
@@ -143,7 +142,8 @@ class BasicRestorer(BaseModel):
                     self.test_cfg.metrics) + ('_inception_feat', )
 
         for metric in self.test_cfg.metrics:
-            if isinstance(metric, dict) or metric in self.feature_based_metrics:
+            if isinstance(metric,
+                          dict) or metric in self.feature_based_metrics:
                 # skip FID and KID
                 continue
             else:
